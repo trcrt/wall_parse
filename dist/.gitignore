@@ -2,3 +2,5 @@
 /output.txt
 /wall_parse.exe
 /wall_parse_cache
+*.rar
+/wall_parse_config.json

@@ -1,4 +1,4 @@
-# https://oauth.vk.com/authorize?client_id=6701596&display=page&response_type=token&v=5.85&revoke=0
+# 1.1.0
 
 import json
 import os
@@ -8,14 +8,11 @@ from datetime import datetime
 
 APP_DIR = os.path.dirname(__file__)
 
+ACCESS_TOKEN_URL = 'https://oauth.vk.com/authorize?client_id=6701596&display=page&response_type=token&v=5.85&revoke=0'
 CONFIG_FILE_PATH = os.path.join(APP_DIR, 'wall_parse_config.json')
 CACHE_FILE_PATH = os.path.join(APP_DIR, 'wall_parse_cache')
 PLAIN_OUTPUT_FILE_PATH = os.path.join(APP_DIR, 'output.txt')
 HTML_OUTPUT_FILE_PATH = os.path.join(APP_DIR, 'output.html')
-
-
-class AccessTokensEmpty(Exception):
-	pass
 
 
 def chunks(l, n):
@@ -24,8 +21,20 @@ def chunks(l, n):
 		yield l[i:i + n]
 
 
+def silentremove(filename):
+	try:
+		os.remove(filename)
+	except OSError as e:
+		if e.errno != errno.ENOENT:
+			raise
+
+
 def utime_to_str(utime):
 	return datetime.utcfromtimestamp(int(utime)).strftime('%Y-%m-%d %H:%M:%S')
+
+
+class AccessTokensEmpty(Exception):
+	pass
 
 
 def get_group_posts_count(vk, group_name):
@@ -40,10 +49,8 @@ def get_liked_or_reposted_posts(vk, all_posts, owner_id, target_user_id):
 		calls = ['API.likes.isLiked({{"user_id": {0}, "type": "post", "owner_id": {1}, "item_id": {2}}})'
 			.format(target_user_id, owner_id, post["wall_post_id"]) for post in posts]
 		code = "return [{0}];".format(','.join(calls))
-		# print(code)
 		resp = vk.execute(code=code)
 		zipres += zip(posts, resp)
-		# print(resps)
 	return [x[0] for x in zipres if (isinstance(x[1], bool) and x[1]) or (not isinstance(x[1], bool) and (x[1]['liked'] + x[1]['copied'] > 0))]
 
 
@@ -147,14 +154,6 @@ def save_posts_as_html(config, page, posts_count):
 		write_tag_block_to_html_output(html_file, "Лайки", 'L', owner_id)
 
 
-def silentremove(filename):
-	try:
-		os.remove(filename)
-	except OSError as e:
-		if e.errno != errno.ENOENT:
-			raise
-
-
 def get_target_user_id(config):
 	target_user = api_wrapper(config, lambda vk:
 		vk.utils.resolveScreenName(screen_name=config["user_name"]))
@@ -173,12 +172,24 @@ def get_target_group_id(config):
 	return target_group["object_id"], target_group["type"]
 
 
-if __name__ == "__main__":
-	print("Загрузка конфигурации...")
-	config = load_config()
+def operation(start_text, operation, end_text=''):
+	print(start_text)
+	ret = operation()
+	if end_text:
+		print(end_text)
+	return ret
+
+
+def load_prev_run_data(config):
 	last_page = get_last_parsed_page(config)
 	if last_page == 0:
 		silentremove(PLAIN_OUTPUT_FILE_PATH)
+	return last_page
+
+
+if __name__ == "__main__":
+	config = operation("Загрузка конфигурации...", load_config)
+	last_page = operation("Обработка данных предыдущего запуска...", lambda: load_prev_run_data(config))
 
 	try:
 		print("Проверка корректности группы/пользователя...")
@@ -214,5 +225,5 @@ if __name__ == "__main__":
 		save_posts_as_html(config, page, posts_count)
 		print("Закончено")
 	except AccessTokensEmpty as e:
-		print("Закончились доступные аккаунты")
-		raise e
+		print("Закончились доступные аккаунты. Получение access_token:")
+		print(ACCESS_TOKEN_URL)
