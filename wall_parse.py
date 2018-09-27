@@ -200,11 +200,13 @@ if __name__ == "__main__":
 			offset = max(posts_count - page * 100, 0)
 			posts_count, all_posts = api_wrapper(config, lambda vk: get_posts(vk, config["group_name"], offset))
 			posts = filter_user_posts(all_posts, target_user_id)
-			print("Найдено {0} записей на странице. Ищем лайки".format(len(posts)))
-			liked_posts = api_wrapper(config, lambda vk: get_liked_or_reposted_posts(vk, all_posts, owner_id, target_user_id))
-			print("Найдено {0} лайкнутых записей на странице".format(len(liked_posts)))
 			save_posts("P", posts)
-			save_posts("L", liked_posts)
+			print("Найдено {0} записей на странице.".format(len(posts)))
+			if config["need_parse_likes"]:
+				print("Ищем лайки...")
+				liked_posts = api_wrapper(config, lambda vk: get_liked_or_reposted_posts(vk, all_posts, owner_id, target_user_id))
+				print("Найдено {0} лайкнутых записей на странице".format(len(liked_posts)))
+				save_posts("L", liked_posts)
 			save_last_parsed_page(config, page)
 			if page % 10 == 0:
 				print("Обновляем html файл вывода")
