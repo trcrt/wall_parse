@@ -1,4 +1,4 @@
-# 1.1.0
+# 1.1.1
 
 import json
 import os
@@ -9,7 +9,8 @@ from datetime import datetime
 APP_DIR = os.path.dirname(__file__)
 
 ACCESS_TOKEN_URL = 'https://oauth.vk.com/authorize?client_id=6701596&display=page&response_type=token&v=5.85&revoke=0'
-CONFIG_FILE_PATH = os.path.join(APP_DIR, 'wall_parse_config.json')
+CONFIG_FILE_NAME = 'wall_parse_config.json'
+CONFIG_FILE_PATH = os.path.join(APP_DIR, CONFIG_FILE_NAME)
 CACHE_FILE_PATH = os.path.join(APP_DIR, 'wall_parse_cache')
 PLAIN_OUTPUT_FILE_PATH = os.path.join(APP_DIR, 'output.txt')
 HTML_OUTPUT_FILE_PATH = os.path.join(APP_DIR, 'output.html')
@@ -82,7 +83,7 @@ def load_config():
 		with open(CONFIG_FILE_PATH) as f:
 			config = json.load(f)
 	except Exception as e:
-		print("Ошибка загрузки конфигурации. Возможно, файл config.json не существует, недоступен или имеет неизвестный формат.")
+		print("Ошибка загрузки конфигурации. Возможно, файл {0} не существует, недоступен или имеет неизвестный формат.".format(CONFIG_FILE_NAME))
 		raise e
 	return config
 
