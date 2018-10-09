@@ -1,6 +1,7 @@
 {
 	"access_tokens": ["c444694e0871aa3a232fc4487b9794c38b88c9cc591050b544f475dbb48af9fafd13658f8705e7b8bd227"],
+	"accounts": [["+77756395515", ""]],
 	"group_name": "6handshakes",
 	"user_name": "id46818899",
-	"need_parse_likes": true
+	"need_parse_likes": false
 }

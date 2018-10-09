@@ -3,3 +3,7 @@
 /output.txt
 /wall_parse.spec
 /wall_parse_cache
+/dist/wall_parse.spec
+/__pycache__/
+*.cache.json
+/dist/output.html

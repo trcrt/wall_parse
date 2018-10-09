@@ -1,13 +1,19 @@
 # 1.1.1
 
+print('Запуск приложения...')
+
+import sys
 import json
 import os
 import errno
 import vk_api
 from datetime import datetime
+from PyQt5.QtWidgets import QApplication
+from qt_input import *
 
 APP_DIR = os.path.dirname(__file__)
 
+VK_APP_ID = 6701596
 ACCESS_TOKEN_URL = 'https://oauth.vk.com/authorize?client_id=6701596&display=page&response_type=token&v=5.85&revoke=0'
 CONFIG_FILE_NAME = 'wall_parse_config.json'
 CONFIG_FILE_PATH = os.path.join(APP_DIR, CONFIG_FILE_NAME)
@@ -80,7 +86,7 @@ def get_posts(vk, group_name, offset):
 
 def load_config():
 	try:
-		with open(CONFIG_FILE_PATH) as f:
+		with open(CONFIG_FILE_PATH, encoding='utf-8') as f:
 			config = json.load(f)
 	except Exception as e:
 		print("Ошибка загрузки конфигурации. Возможно, файл {0} не существует, недоступен или имеет неизвестный формат.".format(CONFIG_FILE_NAME))
@@ -113,18 +119,65 @@ def save_last_parsed_page(config, page_index):
 		pass
 
 
-def api_wrapper(config, callback):
-	tokens = config["access_tokens"]
-	access_token = tokens[0]
-	vk_session = vk_api.VkApi(token=access_token)
-	vk = vk_session.get_api()
+def create_vk_session_from_credentials(config, login, password):
+	def auth_handler_generator(login):
+		attempts_counter = 0
+		def auth_handler():
+			nonlocal attempts_counter
+			attempts_counter += 1
+			if attempts_counter > 3:
+				raise vk_api.AuthError('Код подтверждения указан не верно с 3х попыток')
+			code = qt_input(config['app'], 'Попытка #{0}/3'.format(attempts_counter), '{0} | Код подтверждения входа ввести сюда нужно'.format(login))
+			if code is None:
+				raise vk_api.AuthError('Код подтверждения не указан')
+			return code, True
+		return auth_handler
 
-	while tokens:
+	def captcha_handler_generator(login):
+		def captcha_handler(captcha):
+			print('Ошибка. Для входа в аккаунт {0} требуется ввод каптчи. Каптча пока не поддерживается приложением'.format(login))
+			raise captcha
+		return captcha_handler
+
+	config_filename='{0}.cache.json'.format(login)
+
+	return vk_api.VkApi(
+		login=login, password=password, app_id=VK_APP_ID,
+		auth_handler=auth_handler_generator(login), 
+		captcha_handler=captcha_handler_generator(login), 
+		config_filename=config_filename)
+
+
+def api_wrapper(config, callback):
+	# Используем токены
+	tokens = config.get("access_tokens")	
+	while tokens is not None and tokens:
 		try:
+			access_token = tokens[0]
+			vk_session = vk_api.VkApi(token=access_token)
+			vk = vk_session.get_api()
 			return callback(vk)
 		except vk_api.ApiError as e:
-			print(e)
-			tokens.pop()
+			print("При использовании токена {0}:\n\tОшибка доступа к API {1}".format(access_token, e))
+			tokens.pop()	
+
+	# Используем аккаунты
+	accounts = config.get("accounts")
+	while accounts is not None and accounts:
+		try:
+			login, password = accounts[0]
+			vk_session = create_vk_session_from_credentials(config, login, password)
+			vk_session.auth()
+			vk = vk_session.get_api()
+			return callback(vk)
+		except vk_api.ApiError as e:
+			print("При использовании аккаунта {0}:\n\tОшибка доступа к API {1}".format(login, e))
+			accounts.pop()	
+		except vk_api.AuthError as e:
+			print("При использовании аккаунта {0}:\n\tОшибка аутентификации ({1})".format(login, e))
+			accounts.pop()
+
+
 	raise AccessTokensEmpty()
 
 
@@ -190,7 +243,9 @@ def load_prev_run_data(config):
 
 if __name__ == "__main__":
 	config = operation("Загрузка конфигурации...", load_config)
-	last_page = operation("Обработка данных предыдущего запуска...", lambda: load_prev_run_data(config))
+	last_page = operation("Обработка данных предыдущего запуска...", lambda: load_prev_run_data(config))	
+	app = QApplication(sys.argv)
+	config['app'] = app
 
 	try:
 		print("Проверка корректности группы/пользователя...")
