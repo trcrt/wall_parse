@@ -120,5 +120,3 @@ dmypy.json
 *.cache.json
 /dist/output.html
 wall_parse_config.json
-*.spec
-*.json
