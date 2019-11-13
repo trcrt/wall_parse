@@ -119,4 +119,4 @@ dmypy.json
 /__pycache__/
 *.cache.json
 /dist/output.html
-/wall_parse_config.json
+wall_parse_config.json
